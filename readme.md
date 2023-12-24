@@ -1,1 +1,1 @@
-## CursusDB C# Native Client Package
+## CursusDB C# Native Client Library

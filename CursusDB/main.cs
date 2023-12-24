@@ -21,14 +21,21 @@
 
 namespace CursusDB;
 
+using System.Net;
+using System.Net.Sockets;
+using System.Text;
+using System.Net.Security;
+
 public class Client
 {
-    public string Host {get;set;}
-    public int Port {get; set;}
-    public string Username {get; set;}
-    public string Password {get; set;}
-    public bool TLS {get; set;}
-
+    private string Host {get;set;}
+    private int Port {get; set;}
+    private string Username {get; set;}
+    private string Password {get; set;}
+    private bool TLS {get; set;}
+    private TcpClient tcpClient;
+    private NetworkStream NStream;
+    private SslStream SStream;
     public Client(string host, int port, string username, string password, bool tls)
     {
         Host = host;
@@ -40,18 +47,113 @@ public class Client
 
     public void Connect()
     {
-      
+        String response = "";
+
+        tcpClient = new TcpClient(Host,Port);
+        if(tcpClient != null)
+        {
+
+            var authPlainB64Bytes = System.Text.Encoding.UTF8.GetBytes(Username + "\\0" + Password);
+        
+            string authenticationHeader = "Authentication: " + System.Convert.ToBase64String(authPlainB64Bytes) + "\r\n";
+
+        
+            byte[] authenticationHeaderBytes = Encoding.ASCII.GetBytes(authenticationHeader);  
+
+            NStream = tcpClient.GetStream( );
+            SStream = new SslStream(NStream);
+
+
+            if (!TLS) {
+            NStream.Write(authenticationHeaderBytes, 0, authenticationHeaderBytes.Length);
+            } else {
+                SStream.Write(authenticationHeaderBytes, 0, authenticationHeaderBytes.Length);
+            }
+
+            if (!TLS) {
+                StreamReader reader = new StreamReader(NStream,Encoding.UTF8);
+                try
+                {
+                    
+                    response = reader.ReadToEnd( );
+                }
+                finally
+                {
+                    // Close the reader
+                    reader.Close( );
+
+                    if(response.StartsWith("0")) {
+                        Console.WriteLine("Connected to cluster."); 
+                    } else {
+                        Console.WriteLine("Could not authenticate to cluster."); 
+                    }
+                }
+            } else {
+                StreamReader reader = new StreamReader(SStream,Encoding.UTF8);
+
+                try
+                {
+                    
+                    response = reader.ReadToEnd( );
+                }
+                finally
+                {
+                    // Close the reader
+                    reader.Close( );
+
+                    if(response.StartsWith("0")) {
+                        Console.WriteLine("Connected to cluster."); 
+                    } else {
+                        Console.WriteLine("Could not authenticate to cluster."); 
+                    }
+                }
+            }
+        } else {
+            Console.WriteLine("Could not connect to cluster."); 
+        }
+
     }
 
     
-    public void Query()
+    public String Query(string query)
     {
-      
+        String response = "";
+
+        byte[] queryBytes = Encoding.ASCII.GetBytes(query);  
+
+        if(!TLS) {
+            NStream.Write(queryBytes, 0, queryBytes.Length);
+        } else {
+            SStream.Write(queryBytes, 0, queryBytes.Length);
+        }
+       
+        if(!TLS) {
+            StreamReader reader = new StreamReader(NStream,Encoding.UTF8);
+            try
+            {
+                response = reader.ReadToEnd( );
+            } catch (Exception e) {
+                return e.ToString();
+            }
+        } else {
+            StreamReader reader = new StreamReader(SStream,Encoding.UTF8);
+            try
+            {
+                response = reader.ReadToEnd( );
+            } catch (Exception e) {
+                return e.ToString();
+            }
+        }
+       
+        return response;
+        
+
+       
     }
 
     
     public void Close()
     {
-      
+        tcpClient.Close();
     }
 }

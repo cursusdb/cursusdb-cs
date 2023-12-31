@@ -61,11 +61,13 @@ public class Client
             byte[] authenticationHeaderBytes = Encoding.ASCII.GetBytes(authenticationHeader);  
 
             NStream = tcpClient.GetStream( );
-            SStream = new SslStream(NStream);
 
+            if(TLS) {
+                SStream = new SslStream(NStream);
+            }
 
             if (!TLS) {
-            NStream.Write(authenticationHeaderBytes, 0, authenticationHeaderBytes.Length);
+                NStream.Write(authenticationHeaderBytes, 0, authenticationHeaderBytes.Length);
             } else {
                 SStream.Write(authenticationHeaderBytes, 0, authenticationHeaderBytes.Length);
             }

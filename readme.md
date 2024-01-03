@@ -2,7 +2,7 @@
 
 ### nuget 
 ``` 
-    https://www.nuget.org/packages/CursusDB/LATEST_VERSION
+dotnet add package CursusDB --version 1.1.0
 ```
 
 ### Example

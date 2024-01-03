@@ -26,126 +26,105 @@ using System.Net.Sockets;
 using System.Text;
 using System.Net.Security;
 
-public class Client
-{
+public class Client {
     private string Host {get;set;}
-    private int Port {get; set;}
+    private Int32 Port {get; set;}
     private string Username {get; set;}
     private string Password {get; set;}
     private bool TLS {get; set;}
-    private TcpClient tcpClient;
-    private NetworkStream NStream;
-    private SslStream SStream;
-    public Client(string host, int port, string username, string password, bool tls)
-    {
-        Host = host;
-        Port = port;
-        Username = username;
-        Password = password;
-        TLS = tls;
+    private TcpClient? TClient;
+    private NetworkStream? NStream;
+    private SslStream? SStream;
+    private StreamReader? SReader;
+
+    public Client(string host, int port, string username, string password, bool tls) {
+        this.Host = host;
+        this.Port = port;
+        this.Username = username;
+        this.Password = password;
+        this.TLS = tls;
     }
 
-    public void Connect()
-    {
+    public string Connect() {
         String response = "";
 
-        tcpClient = new TcpClient(Host,Port);
-        if(tcpClient != null)
-        {
+        this.TClient = new TcpClient(this.Host,this.Port);
 
-            var authPlainB64Bytes = System.Text.Encoding.UTF8.GetBytes(Username + "\\0" + Password);
+        if(TClient != null) {
+
+            var authPlainB64Bytes = System.Text.Encoding.UTF8.GetBytes(this.Username + "\\0" + this.Password);
         
             string authenticationHeader = "Authentication: " + System.Convert.ToBase64String(authPlainB64Bytes) + "\r\n";
 
         
             byte[] authenticationHeaderBytes = Encoding.ASCII.GetBytes(authenticationHeader);  
 
-            NStream = tcpClient.GetStream( );
+            NStream = this.TClient.GetStream( );
 
             if(TLS) {
-                SStream = new SslStream(NStream);
+                this.SStream = new SslStream(NStream);
+                this.SStream.AuthenticateAsClient($"{this.Host}");
             }
 
             if (!TLS) {
-                NStream.Write(authenticationHeaderBytes, 0, authenticationHeaderBytes.Length);
+               this.NStream.Write(authenticationHeaderBytes, 0, authenticationHeaderBytes.Length);
             } else {
-                SStream.Write(authenticationHeaderBytes, 0, authenticationHeaderBytes.Length);
+               this.SStream.Write(authenticationHeaderBytes, 0, authenticationHeaderBytes.Length);
             }
 
             if (!TLS) {
-                StreamReader reader = new StreamReader(NStream,Encoding.UTF8);
-                try
-                {
+                this.SReader = new StreamReader(this.NStream,Encoding.UTF8);
+                try {
                     
-                    response = reader.ReadToEnd( );
-                }
-                finally
-                {
-                    // Close the reader
-                    reader.Close( );
-
-                    if(response.StartsWith("0")) {
-                        Console.WriteLine("Connected to cluster."); 
-                    } else {
-                        Console.WriteLine("Could not authenticate to cluster."); 
+                    response = this.SReader.ReadLine();
+                } finally {
+          
+                    if(!response.StartsWith("0")) {
+                       throw new AuthenticationException(response);
                     }
                 }
+
+                return "Connected to cluster successfully.";
             } else {
-                StreamReader reader = new StreamReader(SStream,Encoding.UTF8);
+               this.SReader = new StreamReader(this.SStream,Encoding.UTF8);
 
-                try
-                {
+                try {
                     
-                    response = reader.ReadToEnd( );
-                }
-                finally
-                {
+                    response = this.SReader.ReadLine();
+                } finally {
                     // Close the reader
-                    reader.Close( );
+                    //reader.Close( );
 
-                    if(response.StartsWith("0")) {
-                        Console.WriteLine("Connected to cluster."); 
-                    } else {
-                        Console.WriteLine("Could not authenticate to cluster."); 
+                    if(!response.StartsWith("0")) {
+                        throw new AuthenticationException(response);
                     }
                 }
+                
+                return "Connected to cluster successfully.";
             }
         } else {
-            Console.WriteLine("Could not connect to cluster."); 
+            throw new ClusterException("Could not connect to cluster."); 
         }
 
     }
 
     
-    public String Query(string query)
-    {
+    public string Query(string query) {
         String response = "";
 
         byte[] queryBytes = Encoding.ASCII.GetBytes(query);  
 
         if(!TLS) {
-            NStream.Write(queryBytes, 0, queryBytes.Length);
+            this.NStream.Write(queryBytes, 0, queryBytes.Length);
         } else {
-            SStream.Write(queryBytes, 0, queryBytes.Length);
+            this.SStream.Write(queryBytes, 0, queryBytes.Length);
         }
        
-        if(!TLS) {
-            StreamReader reader = new StreamReader(NStream,Encoding.UTF8);
-            try
-            {
-                response = reader.ReadToEnd( );
+            try {
+                response = this.SReader.ReadLine( );
             } catch (Exception e) {
-                return e.ToString();
+                throw new QueryException(e.ToString());
             }
-        } else {
-            StreamReader reader = new StreamReader(SStream,Encoding.UTF8);
-            try
-            {
-                response = reader.ReadToEnd( );
-            } catch (Exception e) {
-                return e.ToString();
-            }
-        }
        
         return response;
         
@@ -154,8 +133,60 @@ public class Client
     }
 
     
-    public void Close()
-    {
-        tcpClient.Close();
+    public void Close() {
+        this.SReader.Close();
+        this.TClient.Close();
     }
+
+public class QueryException : Exception
+{
+    public QueryException()
+    {
+    }
+
+    public QueryException(string message)
+        : base(message)
+    {
+    }
+
+    public QueryException(string message, Exception inner)
+        : base(message, inner)
+    {
+    }
+}
+
+public class ClusterException : Exception
+{
+    public ClusterException()
+    {
+    }
+
+    public ClusterException(string message)
+        : base(message)
+    {
+    }
+
+    public ClusterException(string message, Exception inner)
+        : base(message, inner)
+    {
+    }
+}
+
+public class AuthenticationException : Exception
+{
+    public AuthenticationException()
+    {
+    }
+
+    public AuthenticationException(string message)
+        : base(message)
+    {
+    }
+
+    public AuthenticationException(string message, Exception inner)
+        : base(message, inner)
+    {
+    }
+}
+
 }

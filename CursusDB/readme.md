@@ -1,18 +1,25 @@
-```
-CursusDB.Client client = new CursusDB.Client("0.0.0.0", 7861, "dbuser-username", "dbuser-password", false);
+## CursusDB C# Native Client Package
 
-try {
-    string connectResponse = client.Connect()
-    Console.WriteLine(connectResponse);
+### Example
+``` 
+CursusDB.Client client = new CursusDB.Client("0.0.0.0", 7681, "username", "password", false);
 
+if (client != null) {
     try {
-        string queryResponse = client.Connect()
-        Console.WriteLine(queryResponse);
-    } catch(client.QueryException ex) {
+        string connectResponse = client.Connect();
+        Console.WriteLine(connectResponse);
+
+        try {
+            string queryResponse = client.Query("ping;");
+            Console.WriteLine(queryResponse);
+
+            client.Close();
+        } catch(CursusDB.Client.QueryException ex) {
+            Console.WriteLine(ex);
+        }
+        
+    } catch(Exception ex) {
         Console.WriteLine(ex);
     }
-    
-} catch(Exception ex) {
-    Console.WriteLine(ex);
-}
+} 
 ```

@@ -1,8 +1,8 @@
-## CursusDB C# Native Client Library
+## CursusDB C# Native Client Package
 
 ### nuget 
 ``` 
-    https://www.nuget.org/packages/CursusDB/1.0.0
+    https://www.nuget.org/packages/CursusDB/LATEST_VERSION
 ```
 
 ### Example
